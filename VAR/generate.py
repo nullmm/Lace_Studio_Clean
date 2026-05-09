@@ -11,7 +11,7 @@ from models import build_vae_var
 CKPT_PATH = "/root/autodl-tmp/Lace_Studio_Clean/VAR/local_output/ar-ckpt-last.pth"
 VAE_PATH = "/root/autodl-tmp/Lace_Studio_Clean/VAR/vae_ch160v4096z32.pth"
 # 输出文件名改了一下，防止覆盖你之前的图
-OUTPUT_PATH = "generated_lace_uncond_01.png"
+OUTPUT_PATH = "generated_lace_uncond_0.png"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -64,18 +64,18 @@ cond_tensor = torch.zeros((1, 3, 256, 256), device=device)
 # 4. 工业级生成参数 (核心魔法)
 # ==========================================
 # 🌟 核心修改：无条件生成不需要强引导，CFG调低让模型自由发挥
-CFG_SCALE = 1.2  
-TOP_K = 900      # 保持高值以获得蕾丝的丝线肌理
-TOP_P = 0.95
+CFG_SCALE = 1
+TOP_K = 250    # 保持高值以获得蕾丝的丝线肌理
+TOP_P = 0.90
+TEMPERATURE = 0.85
 
-print(f"✨ 开始无条件盲盒抽卡... (CFG={CFG_SCALE})")
+print(f"✨ 開始無條件盲盒抽卡... (CFG={CFG_SCALE}, Temp={TEMPERATURE}, TopK={TOP_K})")
 with torch.no_grad():
     with torch.amp.autocast('cuda', enabled=True):
-        
-        # 传入全黑的 cond_tensor，模型将完全凭借记忆中的蕾丝概率分布进行生成
         generated_image = var.autoregressive_infer_cfg(
             1, cond_tensor, 
-            cfg=CFG_SCALE, top_k=TOP_K, top_p=TOP_P
+            cfg=CFG_SCALE, top_k=TOP_K, top_p=TOP_P,
+            temperature=TEMPERATURE  # 🌟 把溫度參數傳進去！
         )
 
 # ==========================================
