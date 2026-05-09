@@ -11,7 +11,7 @@ from models import build_vae_var
 CKPT_PATH = "/root/autodl-tmp/Lace_Studio_Clean/VAR/local_output/ar-ckpt-last.pth"
 VAE_PATH = "/root/autodl-tmp/Lace_Studio_Clean/VAR/vae_ch160v4096z32.pth"
 # 输出文件名改了一下，防止覆盖你之前的图
-OUTPUT_PATH = "generated_lace_uncond_0.png"
+OUTPUT_PATH = "generated_lace_uncond_2.png"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -61,21 +61,26 @@ print("🎨 正在生成无条件的全零骨架...")
 cond_tensor = torch.zeros((1, 3, 256, 256), device=device)
 
 # ==========================================
-# 4. 工业级生成参数 (核心魔法)
+# 4. 终极工业级无条件生成参数 (修正版)
 # ==========================================
-# 🌟 核心修改：无条件生成不需要强引导，CFG调低让模型自由发挥
-CFG_SCALE = 1
-TOP_K = 250    # 保持高值以获得蕾丝的丝线肌理
-TOP_P = 0.90
-TEMPERATURE = 0.85
+# 1. 因为是无条件模型，CFG 必须严格等于 1.0，绝对防止炸图
+CFG_SCALE = 1.0  
 
-print(f"✨ 開始無條件盲盒抽卡... (CFG={CFG_SCALE}, Temp={TEMPERATURE}, TopK={TOP_K})")
+# 2. 🌟 暴力物理截断：既然不能降温，我们就把字典砍到极小！
+# 强制模型只能在最最最确定的前 100 个纯净 Token 里选词，彻底封杀彩色杂色
+TOP_K = 200      
+
+# 3. 核采样双重保险
+TOP_P = 0.90
+
+print(f"✨ 开始无条件盲盒抽卡... (CFG={CFG_SCALE}, TopK={TOP_K}, TopP={TOP_P})")
 with torch.no_grad():
     with torch.amp.autocast('cuda', enabled=True):
+        
+        # ⚠️ 已经移除了 temperature 参数，纯靠极低的 Top-K 压制杂色
         generated_image = var.autoregressive_infer_cfg(
             1, cond_tensor, 
-            cfg=CFG_SCALE, top_k=TOP_K, top_p=TOP_P,
-            temperature=TEMPERATURE  # 🌟 把溫度參數傳進去！
+            cfg=CFG_SCALE, top_k=TOP_K, top_p=TOP_P
         )
 
 # ==========================================

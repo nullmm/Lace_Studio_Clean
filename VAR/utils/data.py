@@ -28,29 +28,28 @@ class UncondLaceDataset(Dataset):
     def __len__(self):
         return len(self.rgb_files)
 
+    # 在 VAR/utils/data.py 的 __getitem__ 方法中修改：
+
+
     def __getitem__(self, idx):
         rgb_path = self.rgb_files[idx]
+        cond_path = rgb_path.replace("_rgb.png", "_cond.png") # 找回它的红绿兄弟
 
-        # 1. 读取绝对完美的蕾丝原图
         img_rgb = Image.open(rgb_path).convert('RGB')
+        img_cond = Image.open(cond_path).convert('RGB') # 🌟 真正读取红绿图
 
-        # 2. 物理缩放至 512x512 防止爆显存
         img_rgb = TF.resize(img_rgb, (self.final_reso, self.final_reso), interpolation=TF.InterpolationMode.BILINEAR)
+        img_cond = TF.resize(img_cond, (self.final_reso, self.final_reso), interpolation=TF.InterpolationMode.NEAREST) # 掩膜最好用最近邻插值
 
-        # 3. 数据增强（仅水平翻转）
         if self.hflip and random.random() > 0.5:
             img_rgb = TF.hflip(img_rgb)
+            img_cond = TF.hflip(img_cond)
 
-        # 4. 张量化与归一化
         if self.transform:
             img_rgb = self.transform(img_rgb)
+            img_cond = self.transform(img_cond) # 🌟 把真实的掩膜也转成 Tensor 喂给模型
 
-        # 🌟 5. 核心魔法：制造“全盲”条件
-        # 我们返回一张与原图尺寸完全相同的“全零张量”（纯黑色图像）作为条件
-        # 迫使模型放弃依赖条件，进行纯粹的无条件自回归生成
-        img_cond_empty = torch.zeros_like(img_rgb)
-
-        return img_rgb, img_cond_empty
+        return img_rgb, img_cond
 
 
 # ----------------------------------------------------
